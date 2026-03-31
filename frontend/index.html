@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AmpCraft – Audio Upload</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: #0d0d0d;
+        color: #f0f0f0;
+        font-family: 'Segoe UI', sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .card {
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        border-radius: 16px;
+        padding: 48px;
+        width: 100%;
+        max-width: 480px;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #f5a623;
+      }
+
+      p.subtitle {
+        color: #888;
+        font-size: 0.95rem;
+        margin-bottom: 36px;
+      }
+
+      .upload-area {
+        border: 2px dashed #333;
+        border-radius: 12px;
+        padding: 40px 24px;
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+        margin-bottom: 24px;
+      }
+
+      .upload-area:hover,
+      .upload-area.dragover {
+        border-color: #f5a623;
+        background: #1f1a10;
+      }
+
+      .upload-area .icon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+      }
+
+      .upload-area p {
+        color: #aaa;
+        font-size: 0.9rem;
+      }
+
+      .upload-area span {
+        color: #f5a623;
+        font-weight: 600;
+      }
+
+      #file-input {
+        display: none;
+      }
+
+      #file-name {
+        font-size: 0.85rem;
+        color: #888;
+        margin-bottom: 20px;
+        min-height: 20px;
+      }
+
+      button {
+        background: #f5a623;
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 32px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.2s, transform 0.1s;
+      }
+
+      button:hover {
+        background: #e09510;
+      }
+
+      button:active {
+        transform: scale(0.98);
+      }
+
+      button:disabled {
+        background: #444;
+        color: #777;
+        cursor: not-allowed;
+      }
+
+      #status {
+        margin-top: 20px;
+        font-size: 0.9rem;
+        min-height: 20px;
+        color: #aaa;
+      }
+
+      #status.success { color: #4caf50; }
+      #status.error   { color: #f44336; }
+    </style>
+  </head>
+
+  <body>
+    <div class="card">
+      <h1>🎸 AmpCraft</h1>
+      <p class="subtitle">Upload your audio to get started</p>
+
+      <div class="upload-area" id="drop-zone">
+        <div class="icon">🎵</div>
+        <p>Drag & drop your audio file here</p>
+        <p>or <span>click to browse</span></p>
+      </div>
+
+      <input type="file" id="file-input" accept="audio/*" />
+      <div id="file-name">No file selected</div>
+
+      <button id="upload-btn" disabled>Upload</button>
+      <div id="status"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
