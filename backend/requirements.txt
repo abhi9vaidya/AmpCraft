@@ -1,8 +1,13 @@
+# Core — required to run the server
 fastapi
 uvicorn
 python-multipart
+
+# Audio analysis — required for feature extraction
 librosa
 numpy
+soundfile
+
+# ML training — only needed if running train_model.py
 scikit-learn
 joblib
-soundfile

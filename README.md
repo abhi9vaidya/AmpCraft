@@ -1,29 +1,24 @@
 # 🎸 AmpCraft
 
-> Analyze your guitar tone and get a complete, intelligent amp + effects preset — powered by audio signal processing.
+> Upload any guitar audio and get a complete amp + effects signal chain preset — powered by audio signal processing.
 
 ---
 
-## What it does
-
-Upload any guitar audio file (`.wav`, `.mp3`, etc.) and AmpCraft will:
-
-1. **Extract audio features** — spectral centroid, ZCR, RMS, rolloff, flatness
-2. **Classify the tone character** — Bright / Balanced / Warm / Dark
-3. **Generate a full signal chain preset** — no randomness, every gear choice is feature-driven
-
----
-
-## Signal Chain Output
-
-Every analysis returns one item from each slot, chosen deterministically from `gear.json`:
+## How It Works
 
 ```
-Noise Gate → EFX (Drive/Boost/Comp) → Amp → Cabinet → Mod → Delay → Reverb
+audio file
+   ↓
+feature_extractor.py  →  centroid, ZCR, RMS, rolloff, flatness
+   ↓
+_get_tone_class()     →  jazz | clean | blues | rock | high_gain | metal | bass
+   ↓
+tone_engine.py        →  amp + cab + efx + mod + delay + reverb (all from gear.json)
+   ↓
+JSON response
 ```
 
-The amp and cabinet are always **historically paired** (e.g. `dual_rect` → `rect412`).  
-The amp EQ (Treble / Mid / Bass) is set based on spectral centroid.
+No randomness. Same audio always gives the same preset.
 
 ---
 
@@ -32,19 +27,17 @@ The amp EQ (Treble / Mid / Bass) is set based on spectral centroid.
 ```
 ampcraft/
 ├── backend/
-│   ├── main.py               # FastAPI routes
-│   ├── tone_engine.py        # Deterministic gear selection engine
-│   ├── feature_extractor.py  # Audio feature extraction (librosa)
-│   ├── train_model.py        # Optional ML classifier trainer
-│   ├── gear.json             # Full gear catalogue (flat lists)
-│   ├── model/
-│   │   └── tone_model.pkl    # Trained ML model (generated after training)
+│   ├── main.py               # FastAPI routes + tone classification heuristic
+│   ├── tone_engine.py        # Gear selection engine (all logic lives here)
+│   ├── feature_extractor.py  # Audio feature extraction via librosa
+│   ├── gear.json             # Full gear catalogue (amps, cabs, efx, mod, delay, reverb)
+│   ├── train_model.py        # ML trainer (future use — not active)
 │   ├── requirements.txt
-│   └── uploads/
+│   └── uploads/              # Uploaded audio files (auto-created)
 └── frontend/
     ├── src/
-    │   ├── App.jsx           # Main React component
-    │   └── App.css           # Styles
+    │   ├── App.jsx           # React UI
+    │   └── App.css
     └── index.html
 ```
 
@@ -56,7 +49,7 @@ ampcraft/
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8000
 ```
 
 ### Frontend
@@ -66,63 +59,66 @@ npm install
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173` and proxies `/api` → `http://localhost:8000`.
+- Frontend → `http://localhost:5173`
+- Backend  → `http://localhost:8000`
 
 ---
 
 ## API
 
-| Method | Endpoint    | Description                               |
-|--------|-------------|-------------------------------------------|
-| GET    | `/`         | Health check                              |
-| POST   | `/upload`   | Upload audio file (no analysis)           |
-| POST   | `/analyze`  | Upload audio → returns full tone preset   |
+| Method | Endpoint   | Description                       |
+|--------|------------|-----------------------------------|
+| GET    | `/`        | Health check                      |
+| POST   | `/upload`  | Save file without analyzing       |
+| POST   | `/analyze` | Upload audio → return tone preset |
 
-### `/analyze` response shape
+### `/analyze` response
 
 ```json
 {
   "chain": {
-    "tone_character": "bright",
-    "noise_gate": { "type": "noise_gate", "enabled": true, "threshold": -40 },
-    "efx":        { "type": "distortion_pp", "gain": 9 },
-    "amp":        { "type": "die_vh4", "gain": 9, "volume": 6, "treble": 8, "mid": 6, "bass": 4 },
-    "cab":        { "type": "die412", "mic": "SM57" },
-    "mod":        { "type": "flanger", "depth": 2 },
-    "delay":      { "type": "digital", "time": 400, "feedback": 2 },
-    "reverb":     { "type": "plate", "level": 5 }
+    "style":          "Rock",
+    "tone_character": "balanced",
+    "noise_gate": { "type": "noise_gate", "enabled": true, "threshold": -45 },
+    "efx":        { "type": "t_screamer", "gain": 6 },
+    "amp":        { "type": "plexi_100",  "gain": 6, "volume": 7, "treble": 6, "mid": 6, "bass": 6 },
+    "cab":        { "type": "m1960av",    "mic": "SM57" },
+    "mod":        { "type": "phase_90",   "depth": 5 },
+    "delay":      { "type": "mod_delay",  "time": 360, "feedback": 4 },
+    "reverb":     { "type": "room",       "level": 4 }
   },
   "features": {
-    "centroid": 4712.3,
-    "rolloff":  8204.1,
+    "centroid": 2107.9,
+    "rolloff":  4446.7,
     "flatness": 0.0031,
-    "zcr":      0.1342,
-    "rms":      0.0821
+    "zcr":      0.0879,
+    "rms":      0.2067
   }
 }
 ```
 
 ---
 
-## Optional: Train the ML Classifier
+## Tone Classification
 
-The tone engine works fully without ML. To optionally train a Random Forest classifier:
+| Class      | Triggered when                              |
+|------------|---------------------------------------------|
+| `bass`     | RMS < 0.015                                 |
+| `metal`    | ZCR > 0.13                                  |
+| `high_gain`| ZCR > 0.09 + centroid > 3500               |
+| `rock`     | ZCR > 0.09 OR (ZCR > 0.07 + centroid > 2500) OR (ZCR > 0.06 + rolloff > 4000) |
+| `blues`    | ZCR > 0.04 + centroid > 2000, or ZCR > 0.06 |
+| `jazz`     | centroid < 1800 + ZCR < 0.04              |
+| `clean`    | everything else                             |
 
-1. Create `backend/training_data/<class>/` folders — classes: `clean`, `crunch`, `high_gain`, `bass`
-2. Add `.wav` files to each folder
-3. Run:
-```bash
-cd backend
-python train_model.py
-```
-The trained model is saved to `model/tone_model.pkl` and loaded automatically on server start.
+> **Note:** Full-band mixes (drums + bass + vocals) pull spectral centroid down. For best accuracy, upload an isolated guitar track or DI signal.
 
 ---
 
 ## Tech Stack
 
-| Layer    | Tech                              |
-|----------|-----------------------------------|
-| Backend  | Python, FastAPI, librosa, sklearn |
-| Frontend | React, Vite, Axios                |
-| Gear DB  | `gear.json` (flat catalogue)      |
+| Layer    | Tech                          |
+|----------|-------------------------------|
+| Backend  | Python, FastAPI, librosa      |
+| Frontend | React, Vite, Axios            |
+| Gear DB  | `gear.json` (flat catalogue)  |
